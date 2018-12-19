@@ -74,10 +74,13 @@ type jsonSignRequest struct {
 	Label         string          `json:"label"`
 	Serial        *big.Int        `json:"serial,omitempty"`
 	Bundle        bool            `json:"bundle"`
-	ReturnPrecert bool            `json:"ReturnPrecert"`
+	ReturnPrecert bool            `json:"return-precert"`
+	Precert       string          `json:"precert"`
+	Scts          []string        `json:"scts"`
 }
 
 func jsonReqToTrue(js jsonSignRequest) signer.SignRequest {
+
 	sub := new(signer.Subject)
 	if js.Subject == nil {
 		sub = nil
@@ -95,6 +98,8 @@ func jsonReqToTrue(js jsonSignRequest) signer.SignRequest {
 			Label:         js.Label,
 			Serial:        js.Serial,
 			ReturnPrecert: js.ReturnPrecert,
+			Precert:       js.Precert,
+			Scts:          js.Scts,
 		}
 	}
 
@@ -106,6 +111,8 @@ func jsonReqToTrue(js jsonSignRequest) signer.SignRequest {
 		Label:         js.Label,
 		Serial:        js.Serial,
 		ReturnPrecert: js.ReturnPrecert,
+		Precert:       js.Precert,
+		Scts:          js.Scts,
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -26,9 +27,10 @@ import (
 	"github.com/cloudflare/cfssl/info"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
-	"github.com/google/certificate-transparency-go"
+	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/client"
 	"github.com/google/certificate-transparency-go/jsonclient"
+	cttls "github.com/google/certificate-transparency-go/tls"
 	"golang.org/x/net/context"
 )
 
@@ -189,6 +191,43 @@ func OverrideHosts(template *x509.Certificate, hosts []string) {
 // certificate or certificate request with the signing profile,
 // specified by profileName.
 func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
+
+	// Since request has a Precert, call signer.SignFromPrecert()
+	if req.Precert != "" {
+		var der, err = base64.StdEncoding.DecodeString(req.Precert)
+		if err != nil {
+			return nil, cferr.Wrap(cferr.APIClientError,
+				cferr.BadRequest, errors.New("precert is not valid base64 encoding"))
+		}
+
+		var precert *x509.Certificate
+		precert, err = x509.ParseCertificate(der)
+		if err != nil {
+			return nil, cferr.Wrap(cferr.APIClientError,
+				cferr.BadRequest, errors.New("Cannot parse precert"))
+		}
+
+		var scts []ct.SignedCertificateTimestamp
+
+		for _, element := range req.Scts {
+			var sct ct.SignedCertificateTimestamp
+			var binSct, err = hex.DecodeString(element)
+			if err != nil {
+				return nil, cferr.Wrap(cferr.APIClientError,
+					cferr.BadRequest, errors.New("SCT is not hex encoding"))
+			}
+			_, err = cttls.Unmarshal(binSct, &sct)
+			if err != nil {
+				return nil, cferr.Wrap(cferr.APIClientError,
+					cferr.BadRequest, errors.New("Cannot decode SCT"))
+			}
+			scts = append(scts, sct)
+		}
+
+		return s.SignFromPrecert(precert, scts)
+	}
+
+	// No Precert, call signer.Sign()
 	profile, err := signer.Profile(s, req.Profile)
 	if err != nil {
 		return

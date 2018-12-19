@@ -69,7 +69,11 @@ type SignRequest struct {
 	// SCTs and populate the tbsCert with them itself. This precert can then
 	// be passed to SignFromPrecert with the SCTs in order to create a
 	// valid certificate.
-	ReturnPrecert bool
+	ReturnPrecert bool `json:"return-precert"`
+	// If provided, all other parameters with the exception of Scts are ignored.
+	Precert string `json:"precert"`
+	// An array of SignedCertificateTimestamps for embedding into a certificate.
+	Scts []string `json:"scts"`
 }
 
 // appendIf appends to a if s is not an empty string.
